@@ -53,7 +53,7 @@ export default function Loader({
       .finally(() => onLoadComplete());
   }, []);
   return (
-    <ScrollView>
+    <ScrollView onScroll={({}) => {}}>
       {mangas.map((manga, index) => (
         <Card key={index} manga={manga} />
       ))}

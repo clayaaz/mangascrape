@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ActivityIndicator, Button, Text, TextInput, View } from "react-native";
 import Loader from "./components/loader";
 
@@ -14,16 +14,11 @@ function changeUrl(name: string) {
 }
 
 export default function Index() {
-  const [page, setPage] = useState(1);
   const [term, setTerm] = useState("");
-  const [url, setUrl] = useState("https://mangakatana.com/page/" + page);
+  const [url, setUrl] = useState("https://mangakatana.com/");
   const [refreshKey, setRefreshKey] = useState(0);
   const [searchedTerm, setSearchedTerm] = useState("");
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setUrl("https://mangakatana.com/page/" + page);
-  }, [page]);
 
   const handleSearch = () => {
     setSearchedTerm(term);
@@ -66,24 +61,6 @@ export default function Index() {
                   }}
                 />
                 <Button title="Search" onPress={handleSearch} />
-              </View>
-              <View style={{ flexDirection: "row", gap: 8 }}>
-                <Button
-                  title="Last Page"
-                  onPress={() => {
-                    setPage(page - 1);
-                    setRefreshKey((k) => k + 1);
-                    setLoading(true);
-                  }}
-                />
-                <Button
-                  title="Next Page"
-                  onPress={() => {
-                    setPage(page + 1);
-                    setRefreshKey((k) => k + 1);
-                    setLoading(true);
-                  }}
-                />
               </View>
             </View>
           ),
