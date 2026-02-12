@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Text, View } from "react-native";
 
 const BlobImage = ({ url, headers = {} }) => {
