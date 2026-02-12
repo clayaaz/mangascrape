@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Image, Pressable, Text, View } from "react-native";
 
-export default function Cardi({ manga }: { manga: any }) {
+export default function Card({ manga }: { manga: any }) {
   const [isHovered, setIsHovered] = useState(false);
   const router = useRouter();
 

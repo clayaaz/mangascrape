@@ -10,6 +10,19 @@ async function scrape(url: string) {
   const html = await res.text();
 
   const $ = cheerio.load(html);
+  if ($("#book_list").length === 0 && $("#single_book").length > 0) {
+    var manga = $("#single_book")
+      .map(function (i: number, el: any) {
+        return {
+          title: $(el).find(".info .heading").text(),
+          img: $(el).find(".cover img").attr("src"),
+          summary: $(el).find(".summary p").text(),
+          link: url,
+        };
+      })
+      .get()[0];
+    return { mangas: [manga] };
+  }
 
   return {
     mangas: $("#book_list .item")
