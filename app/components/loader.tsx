@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ScrollView } from "react-native";
 import cheerio from "react-native-cheerio";
-import Card from "./components/card";
+import Card from "./card";
 
 async function scrape(url: string) {
   const res = await fetch(url, {
@@ -25,11 +25,19 @@ async function scrape(url: string) {
   };
 }
 
-export default function Loader(url) {
+export default function Loader({
+  url,
+  onLoadComplete,
+}: {
+  url: string;
+  onLoadComplete: () => void;
+}) {
   const [mangas, setMangas] = useState<string[]>([]);
 
   useEffect(() => {
-    scrape(url).then((result) => setMangas(result.mangas));
+    scrape(url)
+      .then((result) => setMangas(result.mangas))
+      .finally(() => onLoadComplete());
   }, []);
   return (
     <ScrollView>

@@ -1,7 +1,8 @@
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Button, ScrollView, Text, View } from "react-native";
 import BlobImage from "./components/blobimage";
+import { chapterStore } from "./store";
 
 async function scrape(url: string) {
   const res = await fetch(url, {
@@ -27,14 +28,53 @@ async function scrape(url: string) {
 export default function Chapter() {
   const router = useRouter();
   const chapter = useLocalSearchParams();
+
+  const chapters = chapterStore.chapters;
+  const currnetIndex = Number(chapter.chapterIndex);
+
+  const isFirst = currnetIndex === chapters.length - 1;
+  const isLast = currnetIndex === 0;
+
+  const goToChapter = (index: number) => {
+    chapterStore.currentIndex = index;
+    router.replace({
+      pathname: "/chapter",
+      params: {
+        ...chapter,
+        ...chapters[index],
+        chapterIndex: index,
+        chapters: chapter.chapters,
+      },
+    });
+  };
   const [pages, setPages] = useState<string[]>([]);
   useEffect(() => {
     scrape(chapter.clink).then((result) => setPages(result.pages));
-  }, []);
+  }, [chapter.clink]);
   return (
     <>
       <Stack.Screen options={{ headerTitle: chapter?.chapter }} />
+
       <ScrollView style={{ flex: 1, flexDirection: "column" }}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            padding: 10,
+            backgroundColor: "#fff",
+          }}
+        >
+          <Button
+            title="Last Chapter"
+            onPress={() => goToChapter(currnetIndex + 1)}
+            disabled={isFirst}
+          />
+          <Button
+            title="Next Chapter"
+            onPress={() => goToChapter(currnetIndex - 1)}
+            disabled={isLast}
+          />
+        </View>
         {pages.map((page, i) => (
           <View key={i}>
             <BlobImage url={page.image} />
@@ -43,6 +83,25 @@ export default function Chapter() {
             </Text>
           </View>
         ))}
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            padding: 10,
+            backgroundColor: "#fff",
+          }}
+        >
+          <Button
+            title="Last Chapter"
+            onPress={() => goToChapter(currnetIndex + 1)}
+            disabled={isFirst}
+          />
+          <Button
+            title="Next Chapter"
+            onPress={() => goToChapter(currnetIndex - 1)}
+            disabled={isLast}
+          />
+        </View>
       </ScrollView>
     </>
   );
