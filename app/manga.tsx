@@ -58,7 +58,7 @@ export default function Manga() {
   const [isHovered, setIsHovered] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
-    setBook(manga);
+    setBook(manga as any);
     scrape(manga.link as string).then((result) => {
       setBook(result.book[0] ?? null);
       setChapters(result.chapters);

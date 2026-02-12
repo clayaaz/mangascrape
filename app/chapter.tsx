@@ -49,11 +49,13 @@ export default function Chapter() {
   };
   const [pages, setPages] = useState<string[]>([]);
   useEffect(() => {
-    scrape(chapter.clink).then((result) => setPages(result.pages));
+    scrape(chapter.clink as any).then((result) =>
+      setPages(result.pages as any),
+    );
   }, [chapter.clink]);
   return (
     <>
-      <Stack.Screen options={{ headerTitle: chapter?.chapter }} />
+      <Stack.Screen options={{ headerTitle: chapter?.chapter as any }} />
 
       <ScrollView style={{ flex: 1, flexDirection: "column" }}>
         <View
