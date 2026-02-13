@@ -19,9 +19,11 @@ const BlobImage = ({ url, headers = {} }) => {
             "data:application/octet-stream",
             "data:image/jpeg",
           );
-          Image.getSize(uri, (width, height) => {
-            setImageData({ uri: uri, width: width, height: height });
-          });
+          setTimeout(() => {
+            Image.getSize(uri, (width, height) => {
+              setImageData({ uri: uri, width: width, height: height });
+            });
+          }, 100);
         };
         reader.readAsDataURL(blob);
       } catch (err) {

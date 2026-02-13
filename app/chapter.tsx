@@ -25,9 +25,12 @@ async function scrape(url: string) {
 
   if (m != null) {
     return {
-      pages: m[1]
-        .split(",")
-        .map((p) => ({ image: p.trim().replace(/['"]/g, "") })),
+      pages: m[1].split(",").map((p) => ({
+        image: p
+          .trim()
+          .replace(/['"]/g, "")
+          .replace("i1", "i" + Math.ceil(Math.random() * 3)),
+      })),
     };
   }
 
@@ -203,14 +206,6 @@ export default function Chapter() {
         {pages.map((page, i) => (
           <View key={i} style={styles.pageWrapper}>
             <BlobImage url={page.image} />
-            <View style={styles.pageCounterRow}>
-              <View style={styles.pageCounterPill}>
-                <Text style={styles.pageCounter}>
-                  {i + 1}{" "}
-                  <Text style={styles.pageCounterDim}>/ {pages.length}</Text>
-                </Text>
-              </View>
-            </View>
           </View>
         ))}
 
@@ -338,31 +333,8 @@ const styles = StyleSheet.create({
   pageWrapper: {
     marginBottom: 2,
     alignItems: "center",
+    flex: 1,
   },
-  pageCounterRow: {
-    marginTop: 8,
-    marginBottom: 14,
-    alignItems: "center",
-  },
-  pageCounterPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(167,139,250,0.1)",
-  },
-  pageCounter: {
-    fontSize: 11,
-    color: "#a78bfa",
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
-  pageCounterDim: {
-    color: "#4a4060",
-    fontWeight: "500",
-  },
-
   // Loading
   loadingBlock: {
     alignItems: "center",
