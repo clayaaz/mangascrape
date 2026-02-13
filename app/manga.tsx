@@ -7,7 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  View
+  View,
 } from "react-native";
 import cheerio from "react-native-cheerio";
 import { chapterStore } from "./store";
@@ -171,11 +171,18 @@ export default function Manga() {
               >
                 <View style={styles.chapterRowInner}>
                   <View style={styles.chapterNumBadge}>
-                    <Text style={styles.chapterNumText}>{i + 1}</Text>
+                    <Text style={styles.chapterNumText}>
+                      {chapters.length - i}
+                    </Text>
                   </View>
                   <Text style={styles.chapterTitle} numberOfLines={1}>
                     {chapter.chapter}
                   </Text>
+                  {i === 0 && (
+                    <View style={styles.newBadge}>
+                      <Text style={styles.newBadgeText}>NEW</Text>
+                    </View>
+                  )}
                   <Text style={styles.chapterArrow}>›</Text>
                 </View>
               </Pressable>
@@ -365,5 +372,19 @@ const styles = StyleSheet.create({
     color: "#4a4060",
     fontSize: 20,
     fontWeight: "300",
+  },
+  newBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: "rgba(34,197,94,0.15)",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.4)",
+  },
+  newBadgeText: {
+    color: "#4ade80",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1,
   },
 });
