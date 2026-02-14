@@ -1,5 +1,4 @@
 import { useFocusEffect } from "@react-navigation/native";
-import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
@@ -138,12 +137,6 @@ export default function History() {
                 source={{ uri: entry.img }}
                 style={styles.cover}
                 resizeMode="cover"
-              />
-              <LinearGradient
-                colors={["transparent", "rgba(8,8,12,0.95)"]}
-                start={{ x: 1, y: 0 }}
-                end={{ x: 0, y: 0 }}
-                style={styles.coverFade}
               />
             </View>
 

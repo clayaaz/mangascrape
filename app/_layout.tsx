@@ -16,13 +16,13 @@ export default function RootLayout() {
         contentStyle: {
           backgroundColor: "#08080C",
         },
-        animation: "fade_from_bottom",
+        cardStyle: {
+          backgroundColor: "#08080C",
+        },
+        animation: "ios_from_right",
       }}
     >
-      {/* Tab screens rendered by (tabs)/_layout.tsx */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-      {/* Full-screen stack screens pushed on top of tabs */}
       <Stack.Screen name="manga" />
       <Stack.Screen name="chapter" />
     </Stack>
