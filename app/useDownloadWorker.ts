@@ -133,7 +133,6 @@ async function processQueue(): Promise<void> {
       const entry = queue.find((e) => e.status === "pending");
       if (!entry) break;
 
-      console.log(`[worker] ▶ ${entry.chapterName}`);
       await updateQueueEntry(entry.clink, { status: "downloading" });
       notify(entry.clink, 0, "downloading");
 
@@ -219,7 +218,6 @@ async function processQueue(): Promise<void> {
 
         await dequeue(entry.clink);
         notify(entry.clink, 1, "done");
-        console.log(`[worker] ✓ ${entry.chapterName}`);
       } catch (err: any) {
         console.error(`[worker] ✗ ${entry.chapterName}:`, err?.message);
         await updateQueueEntry(entry.clink, {
@@ -244,7 +242,6 @@ function kick() {
 
 TaskManager.defineTask(BG_TASK, async () => {
   try {
-    console.log("[bg-task] woke up — checking queue");
     await resetStaleDownloads();
     await processQueue();
     return BackgroundFetch.BackgroundFetchResult.NewData;
@@ -260,7 +257,6 @@ async function registerBackgroundTask() {
       stopOnTerminate: false, // keep running after app is force-closed
       startOnBoot: true, // resume after phone restart
     });
-    console.log("[bg-task] registered");
   } catch (e) {
     console.warn("[bg-task] registration failed (simulator?):", e);
   }
@@ -280,7 +276,6 @@ export function useDownloadWorker() {
     // Re-kick when foregrounded
     const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
       if (appState.current.match(/inactive|background/) && next === "active") {
-        console.log("[worker] foregrounded — kicking queue");
         kick();
       }
       appState.current = next;
