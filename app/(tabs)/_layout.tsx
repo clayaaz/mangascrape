@@ -20,6 +20,11 @@ function HistoryIcon({ focused }: { focused: boolean }) {
     <Text style={[styles.iconText, focused && styles.iconTextActive]}>◷</Text>
   );
 }
+function DownloadsIcon({ focused }: { focused: boolean }) {
+  return (
+    <Text style={[styles.iconText, focused && styles.iconTextActive]}>⬇</Text>
+  );
+}
 
 function TabBar({ state, descriptors, navigation }: any) {
   const insets = useSafeAreaInsets();
@@ -109,6 +114,13 @@ export default function TabsLayout() {
         options={{
           tabBarLabel: "History",
           tabBarIcon: ({ focused }) => <HistoryIcon focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="downloads"
+        options={{
+          tabBarLabel: "Download",
+          tabBarIcon: ({ focused }) => <DownloadsIcon focused={focused} />,
         }}
       />
     </Tabs>

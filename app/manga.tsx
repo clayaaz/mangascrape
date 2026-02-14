@@ -2,6 +2,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -10,7 +11,10 @@ import {
   View,
 } from "react-native";
 import cheerio from "react-native-cheerio";
+import { loadQueue } from "./downloadQueue";
+import { deleteChapter, isChapterDownloaded } from "./downloadStore";
 import { chapterStore } from "./store";
+import { queueDownload, subscribeToDownload } from "./useDownloadWorker";
 
 type Book = {
   title: string;
@@ -63,8 +67,211 @@ async function scrape(url: string) {
         };
       })
       .get() as Chapter[],
+    // Scrape page URLs for a given chapter URL
+    pageUrls: [] as string[],
   };
 }
+
+// ─── Download button ───────────────────────────────────────────────────────────
+
+function DownloadButton({
+  chapter,
+  mangaLink,
+  mangaTitle,
+  mangaImg,
+}: {
+  chapter: Chapter;
+  mangaLink: string;
+  mangaTitle: string;
+  mangaImg: string;
+}) {
+  const [status, setStatus] = useState<
+    "idle" | "queued" | "downloading" | "done" | "error"
+  >("idle");
+  const [progress, setProgress] = useState(0);
+
+  // On mount: check download index AND queue for current state
+  useEffect(() => {
+    let active = true;
+    async function checkState() {
+      const done = await isChapterDownloaded(chapter.clink);
+      if (done) {
+        if (active) setStatus("done");
+        return;
+      }
+      const queue = await loadQueue();
+      const entry = queue.find((e) => e.clink === chapter.clink);
+      if (!entry) {
+        if (active) setStatus("idle");
+        return;
+      }
+      if (active)
+        setStatus(entry.status === "downloading" ? "downloading" : "queued");
+    }
+    checkState();
+    return () => {
+      active = false;
+    };
+  }, [chapter.clink]);
+
+  // Subscribe to live progress from the worker
+  useEffect(() => {
+    const unsub = subscribeToDownload(chapter.clink, (p, s) => {
+      if (s === "downloading") {
+        setStatus("downloading");
+        setProgress(p);
+      } else if (s === "done") {
+        setStatus("done");
+        setProgress(1);
+      } else if (s === "error") setStatus("error");
+    });
+    return unsub;
+  }, [chapter.clink]);
+
+  const handlePress = async () => {
+    if (status === "done") {
+      Alert.alert(
+        "Delete download?",
+        `Remove offline copy of "${chapter.chapter}"?`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              await deleteChapter(chapter.clink);
+              setStatus("idle");
+              setProgress(0);
+            },
+          },
+        ],
+      );
+      return;
+    }
+    if (status === "queued" || status === "downloading") return;
+    // Queue it — worker handles everything from here
+    setStatus("queued");
+    await queueDownload({
+      clink: chapter.clink,
+      mangaLink,
+      mangaTitle,
+      mangaImg,
+      chapterName: chapter.chapter,
+    });
+  };
+
+  if (status === "queued") {
+    return (
+      <View style={[dlStyles.btn, dlStyles.btnQueued]}>
+        <Text style={dlStyles.iconQueued}>…</Text>
+      </View>
+    );
+  }
+
+  if (status === "downloading") {
+    return (
+      <View style={dlStyles.btn}>
+        <View
+          style={[
+            dlStyles.progressFill,
+            { width: `${Math.round(progress * 100)}%` as any },
+          ]}
+        />
+        <Text style={dlStyles.progressText}>{Math.round(progress * 100)}%</Text>
+      </View>
+    );
+  }
+
+  if (status === "done") {
+    return (
+      <Pressable onPress={handlePress} style={[dlStyles.btn, dlStyles.btnDone]}>
+        <Text style={dlStyles.iconDone}>✓</Text>
+      </Pressable>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <Pressable
+        onPress={handlePress}
+        style={[dlStyles.btn, dlStyles.btnError]}
+      >
+        <Text style={dlStyles.iconError}>↺</Text>
+      </Pressable>
+    );
+  }
+
+  // idle
+  return (
+    <Pressable onPress={handlePress} style={dlStyles.btn}>
+      <Text style={dlStyles.icon}>↓</Text>
+    </Pressable>
+  );
+}
+
+const dlStyles = StyleSheet.create({
+  btn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "rgba(167,139,250,0.1)",
+    borderWidth: 1,
+    borderColor: "rgba(167,139,250,0.25)",
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
+    position: "relative",
+  },
+  btnDone: {
+    backgroundColor: "rgba(74,222,128,0.12)",
+    borderColor: "rgba(74,222,128,0.4)",
+  },
+  btnError: {
+    backgroundColor: "rgba(239,68,68,0.1)",
+    borderColor: "rgba(239,68,68,0.3)",
+  },
+  btnQueued: {
+    backgroundColor: "rgba(167,139,250,0.06)",
+    borderColor: "rgba(167,139,250,0.2)",
+  },
+  iconQueued: {
+    color: "#7c6aaa",
+    fontSize: 14,
+    fontWeight: "800",
+    letterSpacing: 2,
+  },
+  progressFill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "rgba(167,139,250,0.3)",
+  },
+  progressText: {
+    color: "#c4b5fd",
+    fontSize: 8,
+    fontWeight: "800",
+    letterSpacing: 0.3,
+    zIndex: 1,
+  },
+  icon: {
+    color: "#a78bfa",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+  iconDone: {
+    color: "#4ade80",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  iconError: {
+    color: "#f87171",
+    fontSize: 16,
+    fontWeight: "700",
+  },
+});
+
+// ─── Screen ────────────────────────────────────────────────────────────────────
 
 export default function Manga() {
   const router = useRouter();
@@ -81,7 +288,6 @@ export default function Manga() {
     scrape(manga.link as string).then((result) => {
       setBook(result.book[0] ?? null);
       setChapters(result.chapters);
-      // Build a Set of new chapter links for O(1) lookup per row
       setNewChapterLinks(new Set(result.newChapters.map((c) => c.clink)));
     });
   }, []);
@@ -98,7 +304,7 @@ export default function Manga() {
       />
       <View style={styles.root}>
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* ── Hero Section ── */}
+          {/* ── Hero ── */}
           <View style={styles.hero}>
             {book?.img && (
               <Image
@@ -137,7 +343,7 @@ export default function Manga() {
             </View>
           </View>
 
-          {/* ── Summary Card ── */}
+          {/* ── Synopsis ── */}
           <View style={styles.summaryCard}>
             <Text style={styles.sectionLabel}>SYNOPSIS</Text>
             <Text style={styles.summaryText}>{book?.summary}</Text>
@@ -180,7 +386,7 @@ export default function Manga() {
                   ]}
                 >
                   <View style={styles.chapterRowInner}>
-                    {/* Number badge with optional NEW overlay */}
+                    {/* Number badge */}
                     <View style={styles.chapterNumWrapper}>
                       <View
                         style={[
@@ -194,7 +400,7 @@ export default function Manga() {
                             isNew && styles.chapterNumTextNew,
                           ]}
                         >
-                          {i + 1}
+                          {chapters.length - i}
                         </Text>
                       </View>
                       {isNew && (
@@ -214,6 +420,16 @@ export default function Manga() {
                       {chapter.chapter}
                     </Text>
 
+                    {/* Download button — stops tap propagation */}
+                    <Pressable onPress={(e) => e.stopPropagation()}>
+                      <DownloadButton
+                        chapter={chapter}
+                        mangaLink={manga.link as string}
+                        mangaTitle={book?.title ?? (manga.title as string)}
+                        mangaImg={book?.img ?? (manga.img as string)}
+                      />
+                    </Pressable>
+
                     <Text style={styles.chapterArrow}>›</Text>
                   </View>
                 </Pressable>
@@ -232,20 +448,10 @@ const COVER_WIDTH = 130;
 const COVER_HEIGHT = 185;
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#08080C",
-  },
-  scroll: {
-    flex: 1,
-  },
+  root: { flex: 1, backgroundColor: "#08080C" },
+  scroll: { flex: 1 },
 
-  // Hero
-  hero: {
-    height: 320,
-    position: "relative",
-    justifyContent: "flex-end",
-  },
+  hero: { height: 320, position: "relative", justifyContent: "flex-end" },
   heroBackdrop: {
     position: "absolute",
     top: 0,
@@ -255,13 +461,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  heroGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
+  heroGradient: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   heroContent: {
     flexDirection: "row",
     alignItems: "flex-end",
@@ -284,11 +484,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(167,139,250,0.25)",
   },
-  heroInfo: {
-    flex: 1,
-    paddingBottom: 4,
-    gap: 10,
-  },
+  heroInfo: { flex: 1, paddingBottom: 4, gap: 10 },
   heroTitle: {
     color: "#f0ebff",
     fontSize: 18,
@@ -296,11 +492,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     lineHeight: 24,
   },
-  genreRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
+  genreRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   genrePill: {
     paddingHorizontal: 9,
     paddingVertical: 4,
@@ -317,7 +509,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
 
-  // Summary
   summaryCard: {
     marginHorizontal: 16,
     marginTop: 20,
@@ -335,17 +526,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textTransform: "uppercase",
   },
-  summaryText: {
-    color: "#9585b8",
-    fontSize: 13,
-    lineHeight: 20,
-  },
+  summaryText: { color: "#9585b8", fontSize: 13, lineHeight: 20 },
 
-  // Chapters
-  chaptersSection: {
-    marginTop: 24,
-    marginHorizontal: 16,
-  },
+  chaptersSection: { marginTop: 24, marginHorizontal: 16 },
   chapterHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -358,25 +541,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: 0.3,
   },
+
   chapterRow: {
     backgroundColor: "rgba(255,255,255,0.03)",
     borderWidth: 1,
     borderColor: "rgba(167,139,250,0.07)",
     marginBottom: 1,
   },
-  chapterRowFirst: {
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
-  },
+  chapterRowFirst: { borderTopLeftRadius: 14, borderTopRightRadius: 14 },
   chapterRowPressed: {
     backgroundColor: "rgba(167,139,250,0.1)",
     borderColor: "rgba(167,139,250,0.3)",
   },
-  // New chapter row — subtle green wash
   chapterRowNew: {
     backgroundColor: "rgba(74,222,128,0.05)",
     borderColor: "rgba(74,222,128,0.2)",
   },
+
   chapterRowInner: {
     flexDirection: "row",
     alignItems: "center",
@@ -384,6 +565,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 12,
   },
+
+  chapterNumWrapper: { position: "relative" },
   chapterNumBadge: {
     width: 28,
     height: 28,
@@ -392,39 +575,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  chapterNumBadgeNew: {
-    backgroundColor: "rgba(74,222,128,0.12)",
-  },
-  chapterNumText: {
-    color: "#7c6aaa",
-    fontSize: 10,
-    fontWeight: "800",
-  },
-  chapterNumTextNew: {
-    color: "#4ade80",
-  },
-  chapterTitle: {
-    flex: 1,
-    color: "#c9bfe8",
-    fontSize: 14,
-    fontWeight: "500",
-    letterSpacing: 0.1,
-  },
-  chapterTitleNew: {
-    color: "#f0fdf4",
-    fontWeight: "600",
-  },
-  chapterArrow: {
-    color: "#4a4060",
-    fontSize: 20,
-    fontWeight: "300",
-  },
-
-  // Number badge wrapper — holds the badge + the NEW overlay
-  chapterNumWrapper: {
-    position: "relative",
-  },
-  // NEW label pinned to the bottom-right corner of the number badge
+  chapterNumBadgeNew: { backgroundColor: "rgba(74,222,128,0.12)" },
+  chapterNumText: { color: "#7c6aaa", fontSize: 10, fontWeight: "800" },
+  chapterNumTextNew: { color: "#4ade80" },
   newOverlayBadge: {
     position: "absolute",
     bottom: -5,
@@ -442,4 +595,17 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: 0.5,
   },
+
+  chapterTitle: {
+    flex: 1,
+    color: "#c9bfe8",
+    fontSize: 14,
+    fontWeight: "500",
+    letterSpacing: 0.1,
+  },
+  chapterTitleNew: { color: "#f0fdf4", fontWeight: "600" },
+  chapterArrow: { color: "#4a4060", fontSize: 20, fontWeight: "300" },
+
+  // Number badge wrapper
+  chapterNumWrapper2: { position: "relative" },
 });

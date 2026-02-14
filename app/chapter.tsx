@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BlobImage from "./components/blobimage";
+import { getDownloadedChapter } from "./downloadStore";
 import { recordRead } from "./historyStore";
 import { chapterStore } from "./store";
 
@@ -26,12 +27,9 @@ async function scrape(url: string) {
 
   if (m != null) {
     return {
-      pages: m[1].split(",").map((p) => ({
-        image: p
-          .trim()
-          .replace(/['"]/g, "")
-          .replace("i1", "i" + Math.ceil(Math.random() * 3)),
-      })),
+      pages: m[1]
+        .split(",")
+        .map((p) => ({ image: p.trim().replace(/['"]/g, "") })),
     };
   }
 
@@ -148,12 +146,14 @@ export default function Chapter() {
 
   const [pages, setPages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     setPages([]);
+    setIsOffline(false);
 
-    // Save to history whenever a chapter is opened
+    // Record to history
     recordRead({
       title: chapter.title as string,
       img: chapter.img as string,
@@ -162,9 +162,17 @@ export default function Chapter() {
       chapterIndex: currentIndex,
     });
 
-    scrape(chapter.clink as string).then((result) => {
-      setPages(result.pages as any);
-      setLoading(false);
+    // Try local download first, fall back to network
+    getDownloadedChapter(chapter.clink as string).then(async (downloaded) => {
+      if (downloaded && downloaded.pages.length > 0) {
+        setIsOffline(true);
+        setPages(downloaded.pages.map((uri) => ({ image: uri })));
+        setLoading(false);
+      } else {
+        const result = await scrape(chapter.clink as string);
+        setPages(result.pages as any);
+        setLoading(false);
+      }
     });
   }, [chapter.clink]);
 
@@ -212,9 +220,16 @@ export default function Chapter() {
               {chapter?.chapter as string}
             </Text>
           </View>
-          {!loading && (
-            <Text style={styles.pageCountLabel}>{pages.length} pages</Text>
-          )}
+          <View style={styles.chapterLabelRight}>
+            {isOffline && (
+              <View style={styles.offlineBadge}>
+                <Text style={styles.offlineBadgeText}>✓ OFFLINE</Text>
+              </View>
+            )}
+            {!loading && (
+              <Text style={styles.pageCountLabel}>{pages.length} pages</Text>
+            )}
+          </View>
         </View>
 
         {/* Loading state */}
@@ -351,12 +366,32 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     letterSpacing: 0.3,
   },
+  chapterLabelRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  offlineBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: "rgba(74,222,128,0.12)",
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: "rgba(74,222,128,0.35)",
+  },
+  offlineBadgeText: {
+    color: "#4ade80",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1,
+  },
 
   // Pages
   pageWrapper: {
     marginBottom: 2,
     alignItems: "center",
   },
+
   // Loading
   loadingBlock: {
     alignItems: "center",
