@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BlobImage from "./components/blobimage";
+import { recordRead } from "./historyStore";
 import { chapterStore } from "./store";
 
 async function scrape(url: string) {
@@ -133,10 +134,14 @@ export default function Chapter() {
     router.replace({
       pathname: "/chapter",
       params: {
-        ...chapter,
-        ...chapters[index],
+        // Carry manga identity forward explicitly
+        title: chapter.title as string,
+        img: chapter.img as string,
+        link: chapter.link as string,
+        // New chapter data
+        chapter: chapters[index].chapter,
+        clink: chapters[index].clink,
         chapterIndex: index,
-        chapters: chapter.chapters,
       },
     });
   };
@@ -147,6 +152,16 @@ export default function Chapter() {
   useEffect(() => {
     setLoading(true);
     setPages([]);
+
+    // Save to history whenever a chapter is opened
+    recordRead({
+      title: chapter.title as string,
+      img: chapter.img as string,
+      link: chapter.link as string,
+      chapter: chapter.chapter as string,
+      chapterIndex: currentIndex,
+    });
+
     scrape(chapter.clink as string).then((result) => {
       setPages(result.pages as any);
       setLoading(false);
@@ -157,8 +172,16 @@ export default function Chapter() {
     <View style={styles.root}>
       <Stack.Screen
         options={{
-          headerTitle: "",
+          headerTitle: chapter?.chapter as string,
           headerTransparent: true,
+          headerStyle: { backgroundColor: "transparent" },
+          headerTintColor: "#e8e0ff",
+          headerTitleStyle: {
+            fontSize: 14,
+            fontWeight: "700",
+            color: "#c4b5fd",
+            letterSpacing: 0.3,
+          },
         }}
       />
 
@@ -333,7 +356,6 @@ const styles = StyleSheet.create({
   pageWrapper: {
     marginBottom: 2,
     alignItems: "center",
-    flex: 1,
   },
   // Loading
   loadingBlock: {

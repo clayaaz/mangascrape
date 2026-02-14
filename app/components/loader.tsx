@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, FlatList, View } from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet, View } from "react-native";
 import cheerio from "react-native-cheerio";
 import Card from "./card";
 
@@ -35,7 +35,6 @@ async function scrape(url: string) {
     })
     .get();
 
-  // if the page came back empty we've gone past the last page
   return { mangas, hasMore: mangas.length > 0 };
 }
 
@@ -63,7 +62,6 @@ export default function Loader({
   const [loadingMore, setLoadingMore] = useState(false);
   const hasMore = useRef(true);
 
-  // load a specific page and append results
   const loadPage = useCallback(
     async (pageNum: number) => {
       if (!hasMore.current) return;
@@ -82,7 +80,6 @@ export default function Loader({
     [url],
   );
 
-  // reset when url changes (new search or refresh)
   useEffect(() => {
     hasMore.current = true;
     setMangas([]);
@@ -103,14 +100,25 @@ export default function Loader({
       keyExtractor={(_, index) => String(index)}
       renderItem={({ item }) => <Card manga={item} />}
       onEndReached={handleEndReached}
-      onEndReachedThreshold={0.3} // trigger when 30% from the bottom
+      onEndReachedThreshold={0.3}
+      contentContainerStyle={{ paddingBottom: 32 }}
       ListFooterComponent={
         loadingMore ? (
-          <View style={{ padding: 20 }}>
-            <ActivityIndicator size="large" />
+          <View style={styles.footer}>
+            <ActivityIndicator size="small" color="#a78bfa" />
           </View>
         ) : null
       }
     />
   );
 }
+
+const styles = StyleSheet.create({
+  list: {
+    paddingBottom: 32,
+  },
+  footer: {
+    padding: 24,
+    alignItems: "center",
+  },
+});

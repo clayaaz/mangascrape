@@ -4,9 +4,6 @@ export default function RootLayout() {
   return (
     <Stack
       screenOptions={{
-        headerStyle: {
-          backgroundColor: "rgba(8, 8, 12, 0.85)",
-        },
         headerTransparent: true,
         headerBlurEffect: "dark",
         headerTintColor: "#e8e0ff",
@@ -22,7 +19,10 @@ export default function RootLayout() {
         animation: "fade_from_bottom",
       }}
     >
-      <Stack.Screen name="index" />
+      {/* Tab screens rendered by (tabs)/_layout.tsx */}
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+      {/* Full-screen stack screens pushed on top of tabs */}
       <Stack.Screen name="manga" />
       <Stack.Screen name="chapter" />
     </Stack>

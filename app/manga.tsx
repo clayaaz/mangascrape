@@ -47,6 +47,14 @@ async function scrape(url: string) {
         };
       })
       .get() as Book[],
+    newChapters: $(".chapters .chapter .new")
+      .map(function (i: number, el: any) {
+        return {
+          chapter: $(el).find("a").text(),
+          clink: $(el).find("a").attr("href"),
+        };
+      })
+      .get() as Chapter[],
     chapters: $(".chapters .chapter")
       .map(function (i: number, el: any) {
         return {
@@ -62,6 +70,9 @@ export default function Manga() {
   const router = useRouter();
   const manga = useLocalSearchParams();
   const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [newChapterLinks, setNewChapterLinks] = useState<Set<string>>(
+    new Set(),
+  );
   const [book, setBook] = useState<Book | null>(null);
   const [pressedIndex, setPressedIndex] = useState<number | null>(null);
 
@@ -70,6 +81,8 @@ export default function Manga() {
     scrape(manga.link as string).then((result) => {
       setBook(result.book[0] ?? null);
       setChapters(result.chapters);
+      // Build a Set of new chapter links for O(1) lookup per row
+      setNewChapterLinks(new Set(result.newChapters.map((c) => c.clink)));
     });
   }, []);
 
@@ -87,7 +100,6 @@ export default function Manga() {
         <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
           {/* ── Hero Section ── */}
           <View style={styles.hero}>
-            {/* Blurred backdrop from cover art */}
             {book?.img && (
               <Image
                 source={{ uri: book.img }}
@@ -96,7 +108,6 @@ export default function Manga() {
                 resizeMode="cover"
               />
             )}
-            {/* Dark overlay */}
             <LinearGradient
               colors={[
                 "rgba(8,8,12,0.35)",
@@ -105,10 +116,7 @@ export default function Manga() {
               ]}
               style={styles.heroGradient}
             />
-
-            {/* Hero content */}
             <View style={styles.heroContent}>
-              {/* Cover */}
               <View style={styles.coverShadow}>
                 <Image
                   source={{ uri: book?.img }}
@@ -116,12 +124,8 @@ export default function Manga() {
                   resizeMode="cover"
                 />
               </View>
-
-              {/* Info alongside cover */}
               <View style={styles.heroInfo}>
                 <Text style={styles.heroTitle}>{book?.title}</Text>
-
-                {/* Genre pills */}
                 <View style={styles.genreRow}>
                   {book?.genres?.map((genre, i) => (
                     <View key={i} style={styles.genrePill}>
@@ -146,47 +150,75 @@ export default function Manga() {
               <Text style={styles.chapterCount}>{chapters.length} total</Text>
             </View>
 
-            {chapters.map((chapter, i) => (
-              <Pressable
-                key={i}
-                onPress={() => {
-                  chapterStore.chapters = chapters;
-                  chapterStore.currentIndex = i;
-                  router.push({
-                    pathname: "/chapter",
-                    params: {
-                      ...manga,
-                      ...chapters[i],
-                      chapterIndex: i,
-                    },
-                  });
-                }}
-                onPressIn={() => setPressedIndex(i)}
-                onPressOut={() => setPressedIndex(null)}
-                style={[
-                  styles.chapterRow,
-                  pressedIndex === i && styles.chapterRowPressed,
-                  i === 0 && styles.chapterRowFirst,
-                ]}
-              >
-                <View style={styles.chapterRowInner}>
-                  <View style={styles.chapterNumBadge}>
-                    <Text style={styles.chapterNumText}>
-                      {chapters.length - i}
-                    </Text>
-                  </View>
-                  <Text style={styles.chapterTitle} numberOfLines={1}>
-                    {chapter.chapter}
-                  </Text>
-                  {i === 0 && (
-                    <View style={styles.newBadge}>
-                      <Text style={styles.newBadgeText}>NEW</Text>
+            {chapters.map((chapter, i) => {
+              const isNew = newChapterLinks.has(chapter.clink);
+              return (
+                <Pressable
+                  key={i}
+                  onPress={() => {
+                    chapterStore.chapters = chapters;
+                    chapterStore.currentIndex = i;
+                    router.push({
+                      pathname: "/chapter",
+                      params: {
+                        title: book?.title ?? (manga.title as string),
+                        img: book?.img ?? (manga.img as string),
+                        link: manga.link as string,
+                        chapter: chapters[i].chapter,
+                        clink: chapters[i].clink,
+                        chapterIndex: i,
+                      },
+                    });
+                  }}
+                  onPressIn={() => setPressedIndex(i)}
+                  onPressOut={() => setPressedIndex(null)}
+                  style={[
+                    styles.chapterRow,
+                    pressedIndex === i && styles.chapterRowPressed,
+                    i === 0 && styles.chapterRowFirst,
+                    isNew && styles.chapterRowNew,
+                  ]}
+                >
+                  <View style={styles.chapterRowInner}>
+                    {/* Number badge with optional NEW overlay */}
+                    <View style={styles.chapterNumWrapper}>
+                      <View
+                        style={[
+                          styles.chapterNumBadge,
+                          isNew && styles.chapterNumBadgeNew,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.chapterNumText,
+                            isNew && styles.chapterNumTextNew,
+                          ]}
+                        >
+                          {i + 1}
+                        </Text>
+                      </View>
+                      {isNew && (
+                        <View style={styles.newOverlayBadge}>
+                          <Text style={styles.newOverlayBadgeText}>NEW</Text>
+                        </View>
+                      )}
                     </View>
-                  )}
-                  <Text style={styles.chapterArrow}>›</Text>
-                </View>
-              </Pressable>
-            ))}
+
+                    <Text
+                      style={[
+                        styles.chapterTitle,
+                        isNew && styles.chapterTitleNew,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {chapter.chapter}
+                    </Text>
+
+                    <Text style={styles.chapterArrow}>›</Text>
+                  </View>
+                </Pressable>
+              );
+            })}
           </View>
 
           <View style={{ height: 40 }} />
@@ -330,7 +362,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.03)",
     borderWidth: 1,
     borderColor: "rgba(167,139,250,0.07)",
-    borderRadius: 0,
     marginBottom: 1,
   },
   chapterRowFirst: {
@@ -340,6 +371,11 @@ const styles = StyleSheet.create({
   chapterRowPressed: {
     backgroundColor: "rgba(167,139,250,0.1)",
     borderColor: "rgba(167,139,250,0.3)",
+  },
+  // New chapter row — subtle green wash
+  chapterRowNew: {
+    backgroundColor: "rgba(74,222,128,0.05)",
+    borderColor: "rgba(74,222,128,0.2)",
   },
   chapterRowInner: {
     flexDirection: "row",
@@ -356,10 +392,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  chapterNumBadgeNew: {
+    backgroundColor: "rgba(74,222,128,0.12)",
+  },
   chapterNumText: {
     color: "#7c6aaa",
     fontSize: 10,
     fontWeight: "800",
+  },
+  chapterNumTextNew: {
+    color: "#4ade80",
   },
   chapterTitle: {
     flex: 1,
@@ -368,23 +410,36 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     letterSpacing: 0.1,
   },
+  chapterTitleNew: {
+    color: "#f0fdf4",
+    fontWeight: "600",
+  },
   chapterArrow: {
     color: "#4a4060",
     fontSize: 20,
     fontWeight: "300",
   },
-  newBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    backgroundColor: "rgba(34,197,94,0.15)",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "rgba(34,197,94,0.4)",
+
+  // Number badge wrapper — holds the badge + the NEW overlay
+  chapterNumWrapper: {
+    position: "relative",
   },
-  newBadgeText: {
+  // NEW label pinned to the bottom-right corner of the number badge
+  newOverlayBadge: {
+    position: "absolute",
+    bottom: -5,
+    right: -8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    backgroundColor: "#166534",
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "#4ade80",
+  },
+  newOverlayBadgeText: {
     color: "#4ade80",
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 1,
+    fontSize: 7,
+    fontWeight: "900",
+    letterSpacing: 0.5,
   },
 });

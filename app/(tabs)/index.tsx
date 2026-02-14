@@ -1,5 +1,4 @@
 import { BlurView } from "expo-blur";
-import { Stack } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -11,7 +10,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Loader from "./components/loader";
+import Loader from "../components/loader";
 
 function changeUrl(name: string) {
   let url = "https://mangakatana.com/";
@@ -31,10 +30,6 @@ export default function Index() {
   const [loading, setLoading] = useState(true);
   const insets = useSafeAreaInsets();
 
-  // Header height: status bar + nav bar (~44px iOS / ~56px Android)
-  const NAV_BAR_HEIGHT = Platform.OS === "ios" ? 44 : 56;
-  const headerBottom = insets.top + NAV_BAR_HEIGHT;
-
   const handleSearch = () => {
     setSearchedTerm(term);
     setUrl(changeUrl(term));
@@ -44,22 +39,16 @@ export default function Index() {
 
   return (
     <View style={styles.root}>
-      <Stack.Screen
-        options={{
-          headerTitle: () => null,
-          headerLeft: () => (
-            <Text style={styles.headerBrand}>
-              <Text style={styles.headerBrandAccent}>M</Text>ANGA IKUZO
-            </Text>
-          ),
-          headerRight: () => null,
-          headerTransparent: true,
-          headerStyle: { backgroundColor: "transparent" },
-        }}
-      />
+      {/* Brand title rendered in-body — always visible */}
+      <View style={[styles.brandRow, { paddingTop: insets.top + 12 }]}>
+        <Text style={styles.headerBrand}>
+          <Text style={styles.headerBrandAccent}>M</Text>ANGA{" "}
+          <Text style={styles.headerBrandAccent}>I</Text>KUZO
+        </Text>
+      </View>
 
-      {/* Search bar — sits flush below the transparent nav header */}
-      <View style={[styles.searchWrapper, { marginTop: headerBottom }]}>
+      {/* Search bar */}
+      <View style={styles.searchWrapper}>
         <BlurView
           intensity={60}
           tint="dark"
@@ -128,6 +117,10 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#08080C",
+  },
+  brandRow: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
   },
   headerBrand: {
     fontSize: 22,
