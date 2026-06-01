@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/mangakatana/:path*",
+      "destination": "https://mangakatana.com/:path*"
+    },
+    {
+      "source": "/mk-img/:sub/:path*",
+      "destination": "https://:sub.mangakatana.com/:path*"
+    }
+  ]
+}
