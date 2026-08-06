@@ -48,11 +48,15 @@ export async function scrapeMangaList(
 
   if ($("#book_list").length === 0 && $("#single_book").length > 0) {
     const el = $("#single_book").first();
+    const canonical =
+      $('link[rel="canonical"]').attr("href") ??
+      $('meta[property="og:url"]').attr("content") ??
+      url;
     const manga: MangaListItem = {
       title: el.find(".info .heading").text().trim(),
       img: el.find(".cover img").attr("src") ?? "",
       summary: el.find(".summary p").text().trim(),
-      link: url,
+      link: canonical,
     };
     return { mangas: [manga], hasMore: false };
   }
