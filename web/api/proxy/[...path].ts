@@ -1,7 +1,10 @@
 /**
  * Vercel Edge Function that proxies mangakatana HTML pages and chapter images.
  *
- * vercel.json rewrites send:
+ * It lives in `api/proxy/[...path].ts` (a catch-all) because a plain
+ * `api/proxy.ts` only serves the exact `/api/proxy` path — Vercel does not
+ * route `/api/proxy/site/page/2` to it, which is what the rewrites in
+ * vercel.json produce:
  *   /mangakatana/*       -> /api/proxy/site/*      https://mangakatana.com/*
  *   /mk-img/:sub/:path*  -> /api/proxy/img/:sub/*  https://:sub.mangakatana.com/*
  *
@@ -19,6 +22,9 @@ export const config = { runtime: "edge" };
 
 const SITE_PREFIX = "/api/proxy/site";
 const IMG_PREFIX = "/api/proxy/img";
+/** The same paths the browser uses (in case a rewrite passes them through). */
+const SITE_PUBLIC = "/mangakatana";
+const IMG_PUBLIC = "/mk-img";
 
 /** This proxy may only reach mangakatana.com and its subdomains. */
 const ALLOWED_HOST_RE = /^(?:[a-z0-9-]+\.)*mangakatana\.com$/i;
@@ -53,14 +59,8 @@ const IMAGE_TYPE_BY_EXT: Record<string, string> = {
 
 type Route = { url: URL; kind: "site" | "img" };
 
-/**
- * Map the incoming function path to the upstream URL.
- * Returns null when the path isn't one of the two proxy routes (or escapes
- * the allowed hosts, e.g. via a protocol-relative `//host` path).
- */
-function resolveRoute(incoming: URL): Route | null {
-  const { pathname, search } = incoming;
-
+/** Split an incoming path into an upstream origin + path, or null. */
+function splitPath(pathname: string): Route | null {
   let origin: string;
   let rest: string;
   let kind: Route["kind"];
@@ -71,6 +71,16 @@ function resolveRoute(incoming: URL): Route | null {
     rest = pathname.slice(SITE_PREFIX.length);
   } else if (pathname === IMG_PREFIX || pathname.startsWith(`${IMG_PREFIX}/`)) {
     const [, sub = "", ...segments] = pathname.slice(IMG_PREFIX.length).split("/");
+    if (!CDN_LABEL_RE.test(sub)) return null;
+    kind = "img";
+    origin = `https://${sub}.mangakatana.com`;
+    rest = `/${segments.join("/")}`;
+  } else if (pathname === SITE_PUBLIC || pathname.startsWith(`${SITE_PUBLIC}/`)) {
+    kind = "site";
+    origin = "https://mangakatana.com";
+    rest = pathname.slice(SITE_PUBLIC.length);
+  } else if (pathname.startsWith(`${IMG_PUBLIC}/`)) {
+    const [, sub = "", ...segments] = pathname.slice(IMG_PUBLIC.length).split("/");
     if (!CDN_LABEL_RE.test(sub)) return null;
     kind = "img";
     origin = `https://${sub}.mangakatana.com`;
@@ -86,10 +96,22 @@ function resolveRoute(incoming: URL): Route | null {
     return null;
   }
   if (!ALLOWED_HOST_RE.test(url.hostname)) return null;
-
-  // Vercel rewrites keep the original query string (?search=…&page=…).
-  url.search = search;
   return { url, kind };
+}
+
+/**
+ * Map the incoming function path to the upstream URL.
+ * Accepts both the rewritten path (`/api/proxy/site/...`) and the original
+ * browser path (`/mangakatana/...`, `/mk-img/...`).
+ * Returns null when the path isn't one of the two proxy routes (or escapes
+ * the allowed hosts, e.g. via a protocol-relative `//host` path).
+ */
+function resolveRoute(incoming: URL): Route | null {
+  const route = splitPath(incoming.pathname);
+  if (!route) return null;
+  // Vercel rewrites keep the original query string (?search=…&page=…).
+  route.url.search = incoming.search;
+  return route;
 }
 
 /** Upstream serves chapter images as `application/octet-stream` — fix that. */
