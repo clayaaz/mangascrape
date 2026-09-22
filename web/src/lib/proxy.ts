@@ -17,7 +17,10 @@ export function absoluteMkUrl(url: string): string {
 }
 
 /**
- * Rewrite mangakatana URLs to same-origin paths (vite.config proxies).
+ * Rewrite mangakatana URLs to same-origin paths.
+ * Locally the vite dev server proxies them (`vite.config.ts`); in production the
+ * same paths are served by the Vercel edge function in `api/proxy.ts`, which
+ * also adds CORS + cache headers.
  * Use as <img src> — avoids CORS and fetch preflight issues.
  */
 export function proxyUrl(url: string): string {

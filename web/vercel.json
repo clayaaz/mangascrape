@@ -1,12 +1,21 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
+      "source": "/mangakatana",
+      "destination": "/api/proxy/site"
+    },
+    {
       "source": "/mangakatana/:path*",
-      "destination": "https://mangakatana.com/:path*"
+      "destination": "/api/proxy/site/:path*"
+    },
+    {
+      "source": "/mk-img/:sub",
+      "destination": "/api/proxy/img/:sub"
     },
     {
       "source": "/mk-img/:sub/:path*",
-      "destination": "https://:sub.mangakatana.com/:path*"
+      "destination": "/api/proxy/img/:sub/:path*"
     }
   ]
 }
